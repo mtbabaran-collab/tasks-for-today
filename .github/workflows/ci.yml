@@ -45,3 +45,24 @@ jobs:
           curl -s -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: example.onrender.com' http://localhost:10000/login | grep -q 'https://example.onrender.com/build/assets/'
           code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:10000/tasks/create)
           echo "/tasks/create (guest) -> $code"; [ "$code" = "302" ]
+      - name: Full flow on the production image (log in, mark done, email sent once)
+        run: |
+          set -e
+          B=http://localhost:10000; J=jar.txt
+          token() { curl -s -c $J -b $J "$1" | grep -o 'name="_token" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//'; }
+          T=$(token $B/login)
+          curl -s -c $J -b $J -o /dev/null -X POST $B/login --data-urlencode "_token=$T" \
+            --data-urlencode "email=demo@tasksfortoday.test" --data-urlencode "password=password"
+          code=$(curl -s -b $J -o /dev/null -w '%{http_code}' $B/tasks/create); echo "create page after login -> $code"; [ "$code" = "200" ]
+          T=$(token $B/tasks/create)
+          loc=$(curl -s -c $J -b $J -o /dev/null -w '%{redirect_url}' -X POST $B/tasks --data-urlencode "_token=$T" \
+            --data-urlencode "title=CI email check" --data-urlencode "status=pending" --data-urlencode "priority=high")
+          ID=${loc##*/}; echo "created task $ID"
+          for i in 1 2; do
+            T=$(token $B/tasks/$ID/edit)
+            curl -s -c $J -b $J -o /dev/null -X POST $B/tasks/$ID --data-urlencode "_token=$T" --data-urlencode "_method=PUT" \
+              --data-urlencode "title=CI email check" --data-urlencode "status=done" --data-urlencode "priority=high"
+          done
+          sleep 2
+          n=$(docker logs app 2>&1 | grep -c "Subject: Task completed: CI email check" || true)
+          echo "completion emails in the log: $n"; [ "$n" = "1" ]
