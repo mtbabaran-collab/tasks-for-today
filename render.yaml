@@ -1,0 +1,31 @@
+# Render Blueprint: one free web service built from the Dockerfile.
+# No secrets here. The app key is generated when the container starts (docker/start.sh).
+services:
+  - type: web
+    name: tasks-for-today
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /up
+    envVars:
+      - key: APP_NAME
+        value: Tasks for Today
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_TIMEZONE
+        value: Asia/Manila
+      - key: DB_CONNECTION
+        value: sqlite
+      - key: SESSION_DRIVER
+        value: database
+      - key: LOG_CHANNEL
+        value: stderr
+      # Emails are written to the log (visible in Render > Logs), so no real inbox is needed.
+      - key: MAIL_MAILER
+        value: log
+      - key: MAIL_FROM_ADDRESS
+        value: no-reply@tasksfortoday.test
+      - key: TASK_NOTIFY_EMAIL
+        value: tasks-admin@example.com
