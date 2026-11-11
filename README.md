@@ -36,7 +36,7 @@ IT0049 Web System Technologies · Technical Summative Assessment 4
 
 ## Run it on your computer
 
-Requirements: **PHP 8.3+** (8.4 recommended), **Composer**, **Node.js 18+**.
+Requirements: **PHP 8.3+** (8.4 recommended), **Composer**, **Node.js 20.19+** (22 recommended).
 
 ```bash
 git clone https://github.com/mtbabaran-collab/tasks-for-today.git
