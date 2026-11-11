@@ -8,9 +8,13 @@ PORT="${PORT:-80}"
 sed -i "s/^Listen 80$/Listen ${PORT}/" /etc/apache2/ports.conf
 sed -i "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf
 
-# .env with an app key (the key is generated on the server, never stored in Git).
+# .env with an app key (the key is made on the server, never stored in Git).
 if [ ! -f .env ]; then
     cp .env.example .env
+fi
+# Render's render.yaml generates a random 256-bit APP_KEY_SOURCE once; using it keeps the same key after restarts.
+if [ -z "$APP_KEY" ] && [ -n "$APP_KEY_SOURCE" ]; then
+    export APP_KEY="base64:${APP_KEY_SOURCE}"
 fi
 if [ -z "$APP_KEY" ] && ! grep -q "^APP_KEY=base64:" .env; then
     php artisan key:generate --force

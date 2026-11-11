@@ -125,6 +125,27 @@ class TaskManagementTest extends TestCase
         $this->get(route('tasks.show', $task))->assertNotFound();
     }
 
+    public function test_odd_query_values_do_not_break_the_list(): void
+    {
+        Task::factory()->create(['title' => '100% done soon']);
+        Task::factory()->create(['title' => 'Plain task']);
+
+        $this->get('/tasks?q[]=x')->assertOk();
+        $this->get('/tasks?status[]=done')->assertOk();
+        $this->get('/tasks?status=not-a-status')->assertOk()->assertSee('Plain task');
+        // "%" is searched as a normal character, not a wildcard.
+        $this->get('/tasks?q=%25')->assertOk()->assertSee('100% done soon')->assertDontSee('Plain task');
+    }
+
+    public function test_seeder_creates_demo_account_and_tasks(): void
+    {
+        $this->seed();
+
+        $this->assertDatabaseHas('users', ['email' => 'demo@tasksfortoday.test']);
+        $this->assertGreaterThan(5, Task::active()->count());
+        $this->assertSame(1, Task::archived()->count());
+    }
+
     public function test_task_list_filters_by_status(): void
     {
         Task::factory()->create(['title' => 'Still pending']);

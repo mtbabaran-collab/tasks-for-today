@@ -114,8 +114,8 @@ Run `php artisan config:clear` after changing `.env`.
 php artisan test
 ```
 
-39 tests (Breeze's auth tests plus this project's tests), including:
-- `tests/Feature/TaskManagementTest.php`: public pages, guests blocked from create/edit/delete, validation, update, archive and restore.
+41 tests (Breeze's auth tests plus this project's tests), including:
+- `tests/Feature/TaskManagementTest.php`: public pages, guests blocked from create/edit/delete, validation, update, archive and restore, odd search values, and the seeder.
 - `tests/Feature/TaskCompletedEmailTest.php`: email sent once when a task becomes done, not resent while it stays done, not sent for other status changes.
 
 ---
@@ -144,5 +144,6 @@ Render > New > Blueprint > pick this repository > Apply. On first start the cont
 database, runs the migrations and seeds the demo data (`docker/start.sh`). Emails use the log driver and
 appear in Render > Logs.
 
-Note: on Render's free plan the service sleeps when unused (the first visit can take about a minute), and the
-SQLite database is reset to the demo data when the service is redeployed.
+Note: on Render's free plan the service sleeps after about 15 minutes without visitors (the first visit can take
+about a minute), and each time it wakes up or is redeployed the SQLite database starts again from the demo data.
+Tasks you add on the live site are kept only while the service is awake.

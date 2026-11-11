@@ -23,13 +23,19 @@ class TaskController extends Controller
     /** Public task list with an optional status filter and search. Archived tasks are hidden. */
     public function index(Request $request): View
     {
-        $status = $request->query('status');
-        $search = trim((string) $request->query('q', ''));
+        // Only accept plain text values (a crafted ?q[]=x would otherwise cause an error).
+        $status = is_string($request->query('status')) && array_key_exists($request->query('status'), Task::STATUSES)
+            ? $request->query('status')
+            : null;
+        $search = is_string($request->query('q')) ? mb_substr(trim($request->query('q')), 0, 100) : '';
+        // % and _ are LIKE wildcards; escape them with "!" so they are searched as normal characters
+        // ("!" works the same in SQLite and MySQL, unlike a backslash).
+        $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%';
 
         $tasks = Task::active()
-            ->when(array_key_exists((string) $status, Task::STATUSES), fn ($q) => $q->where('status', $status))
-            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")->orWhere('description', 'like', "%{$search}%");
+            ->when($status !== null, fn ($q) => $q->where('status', $status))
+            ->when($search !== '', fn ($q) => $q->where(function ($q) use ($like) {
+                $q->whereRaw("title like ? escape '!'", [$like])->orWhereRaw("description like ? escape '!'", [$like]);
             }))
             // Unfinished first, then by due date (no date last), newest first.
             ->orderByRaw("case when status = 'done' then 1 else 0 end")
@@ -83,14 +89,19 @@ class TaskController extends Controller
     {
         abort_if($task->is_archived, 404);
 
-        $wasDone = $task->isDone();
         $data = $request->validated();
+        $justCompleted = false;
 
-        $justCompleted = ! $wasDone && $data['status'] === 'done';
-        if ($justCompleted) {
-            $data['completed_at'] = now();
-        } elseif ($data['status'] !== 'done') {
-            $data['completed_at'] = null; // re-opened
+        if ($data['status'] === 'done') {
+            // Move to "done" only if the row is not done yet. The WHERE makes this a single atomic step,
+            // so even two quick saves at the same time produce exactly one "just completed" (one email).
+            $justCompleted = Task::whereKey($task->id)
+                ->where('status', '!=', 'done')
+                ->update(['status' => 'done', 'completed_at' => now()]) === 1;
+            $task->refresh();
+            unset($data['status']);
+        } else {
+            $data['completed_at'] = null; // re-opened or still in progress
         }
 
         $task->update($data);
