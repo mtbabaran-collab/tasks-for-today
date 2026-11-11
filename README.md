@@ -3,7 +3,8 @@
 IT0049 Web System Technologies · Technical Summative Assessment 4
 **Full CRUD, Breeze authentication, and an email notification when a task is completed.**
 
-- **Live site:** _(hosted link, see "Hosting" below)_
+- **Live site:** https://tasks-for-today-u5ov.onrender.com (free hosting: the first visit after a quiet period can take about a minute to wake up)
+- **GitHub:** https://github.com/mtbabaran-collab/tasks-for-today
 - **Demo login:** `demo@tasksfortoday.test` / `password` (created by the seeder)
 
 ---

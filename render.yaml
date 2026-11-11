@@ -11,6 +11,8 @@ services:
       # Random 256-bit value made by Render once; docker/start.sh turns it into APP_KEY.
       - key: APP_KEY_SOURCE
         generateValue: true
+      - key: APP_URL
+        value: https://tasks-for-today-u5ov.onrender.com
       - key: APP_NAME
         value: Tasks for Today
       - key: APP_ENV
