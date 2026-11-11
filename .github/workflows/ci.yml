@@ -1,0 +1,47 @@
+# CI: runs the test suite, then builds the production Docker image and checks the pages respond.
+name: Tests and Docker smoke test
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, mbstring
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: composer install --no-interaction --prefer-dist
+      - run: npm ci && npm run build
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image
+        run: docker build -t tasks-for-today .
+      - name: Start it like Render does (PORT=10000, proxy sends X-Forwarded-Proto)
+        run: |
+          docker run -d --name app -p 10000:10000 -e PORT=10000 -e APP_ENV=production -e APP_DEBUG=false \
+            -e APP_KEY_SOURCE=$(openssl rand -base64 32) -e LOG_CHANNEL=stderr -e MAIL_MAILER=log tasks-for-today
+          for i in $(seq 1 30); do curl -fs http://localhost:10000/up && break; sleep 2; done
+          docker logs app | tail -30
+      - name: Pages respond and links use https behind the proxy
+        run: |
+          set -e
+          for p in / /tasks /profile /about /login; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-Proto: https' http://localhost:10000$p)
+            echo "$p -> $code"; [ "$code" = "200" ]
+          done
+          curl -s -H 'X-Forwarded-Proto: https' http://localhost:10000/tasks | grep -q 'Finish IT0049 TSA4 write-up'
+          curl -s -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: example.onrender.com' http://localhost:10000/login | grep -q 'https://example.onrender.com/build/assets/'
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:10000/tasks/create)
+          echo "/tasks/create (guest) -> $code"; [ "$code" = "302" ]
